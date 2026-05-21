@@ -84,9 +84,12 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showGradeMenu, setShowGradeMenu] = useState(false)
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
+  const [disclaimer, setDisclaimer] = useState(null)  // red toast message
+  const [listening, setListening] = useState(false)
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
+  const recognitionRef = useRef(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('ai_tutor_user')
@@ -100,8 +103,59 @@ export default function Dashboard() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  useEffect(() => {
+    if (!disclaimer) return
+    const t = setTimeout(() => setDisclaimer(null), 5000)
+    return () => clearTimeout(t)
+  }, [disclaimer])
+
   const currentMessages = messages[activeTool] || []
   const currentTool = TOOLS.find(t => t.id === activeTool)
+
+  const toggleVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) {
+      setDisclaimer("Voice input is not supported in this browser. Please use Chrome or Edge.")
+      return
+    }
+
+    if (listening) {
+      recognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+
+    const rec = new SR()
+    rec.continuous = false
+    rec.interimResults = true
+    rec.lang = 'en-IN'
+    rec.maxAlternatives = 1
+
+    let finalTranscript = ''
+
+    rec.onresult = (event) => {
+      let interim = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) finalTranscript += transcript
+        else interim += transcript
+      }
+      setInput((finalTranscript + interim).trim())
+    }
+
+    rec.onerror = (e) => {
+      setListening(false)
+      if (e.error === 'not-allowed') {
+        setDisclaimer("Microphone access denied. Please allow microphone permission in your browser.")
+      }
+    }
+
+    rec.onend = () => setListening(false)
+
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
+  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
@@ -129,6 +183,9 @@ export default function Dashboard() {
         body: JSON.stringify({ message: text, grade, subject, tool: activeTool }),
       })
       const data = await res.json()
+      if (data.blocked) {
+        setDisclaimer("Inappropriate language detected. Please keep questions focused on your studies. This message will close in 5 seconds.")
+      }
       const aiMsg = { role: 'ai', content: data.response || data.detail || 'Sorry, I could not get a response.' }
       setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), aiMsg] }))
     } catch {
@@ -148,6 +205,20 @@ export default function Dashboard() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+
+      {/* Red disclaimer toast (auto-hides after 5s) */}
+      {disclaimer && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-red-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-md border border-red-700">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p className="text-sm font-medium leading-snug">{disclaimer}</p>
+            <button onClick={() => setDisclaimer(null)}
+              className="ml-2 text-white/80 hover:text-white text-lg leading-none flex-shrink-0">✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Top Navbar */}
       <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0 shadow-sm z-10">
@@ -293,6 +364,21 @@ export default function Dashboard() {
                 </svg>
               </button>
               <input ref={fileRef} type="file" accept=".txt,.pdf" className="hidden" onChange={handleFileUpload} />
+
+              {/* Voice input (mic) */}
+              <button onClick={toggleVoice} title={listening ? "Stop recording" : "Voice input"}
+                className={`p-1.5 transition flex-shrink-0 mb-0.5 rounded-lg relative
+                  ${listening ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-blue-500'}`}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                {listening && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
+              </button>
 
               {/* Subject selector */}
               <div className="relative flex-shrink-0 mb-0.5">
