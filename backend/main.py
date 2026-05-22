@@ -78,6 +78,11 @@ STRUCTURE_GUIDE = (
 )
 
 
+class HistoryMsg(BaseModel):
+    role: str  # 'user' or 'assistant'
+    content: str
+
+
 class ChatRequest(BaseModel):
     message: str
     grade: str
@@ -86,6 +91,7 @@ class ChatRequest(BaseModel):
     topic: str = ""             # optional specific chapter/topic title (for concept)
     format: str = "default"     # summarizer format (e.g. 2_paragraphs, bullets, notes...)
     focus: str = ""             # optional focus keyword/tag for summarizer
+    history: list[HistoryMsg] = []  # prior turns in this conversation
 
 
 @app.get("/api/health")
@@ -204,9 +210,11 @@ async def chat(req: ChatRequest):
     ) if req.topic else ""
 
     if req.tool == "summarizer":
-        # The summarizer is strictly document-based. Reject very short input that
-        # is clearly not a document the student is trying to summarize.
-        if len(req.message.strip()) < 100:
+        # Document-only on the FIRST turn. Once a document has been summarized,
+        # follow-up questions can be short ("summarize about management", "explain
+        # the database part more", etc.) because the document is in conversation context.
+        has_history = len(req.history) > 0
+        if not has_history and len(req.message.strip()) < 100:
             return {
                 "response": "📄 The AI Summarizer works only with documents. Please upload a PDF/image/text file, or paste at least one paragraph of study material to summarize.",
                 "blocked": False,
@@ -264,13 +272,17 @@ async def chat(req: ChatRequest):
             f"{CONTENT_GUARD}{rag_block}"
         )
 
+    # Build messages array with prior conversation context (last 6 turns)
+    messages = [{"role": "system", "content": system}]
+    for h in (req.history or [])[-6:]:
+        if h.role in ("user", "assistant") and h.content:
+            messages.append({"role": h.role, "content": h.content})
+    messages.append({"role": "user", "content": req.message})
+
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": req.message},
-            ],
+            messages=messages,
             max_tokens=1200,
             temperature=0.7,
         )

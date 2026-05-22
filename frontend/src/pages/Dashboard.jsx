@@ -319,6 +319,12 @@ export default function Dashboard() {
     setInput('')
     setLoading(true)
 
+    // Build conversation history from prior turns of this tool (last 6 messages)
+    const history = (messages[activeTool] || []).slice(-6).map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content,
+    }))
+
     try {
       const res = await fetch(`${API}/api/chat`, {
         method: 'POST',
@@ -331,6 +337,7 @@ export default function Dashboard() {
           topic: chapter?.title || '',
           format: activeTool === 'summarizer' ? summaryFormat : 'default',
           focus: activeTool === 'summarizer' ? focusKeyword.trim() : '',
+          history,
         }),
       })
       const data = await res.json()
