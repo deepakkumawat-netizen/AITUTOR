@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ProfileModal from '../components/ProfileModal'
+import TopicSelectionModal from '../components/TopicSelectionModal'
 
-const SUBJECTS = ['Maths', 'Science', 'English', 'Hindi', 'Social Science', 'General Knowledge']
-const GRADES = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)
 const API = import.meta.env.VITE_API_URL || ''
 
 const TOOLS = [
@@ -26,18 +26,9 @@ const TOOLS = [
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
       </svg>
     ),
-    placeholder: 'Paste your notes or text to summarize...',
+    placeholder: 'Type a topic to focus on, or paste text to summarize...',
   },
 ]
-
-function Avatar({ name, size = 'md' }) {
-  const sizes = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-11 h-11 text-base' }
-  return (
-    <div className={`${sizes[size]} rounded-full bg-blue-600 flex items-center justify-center font-bold text-white flex-shrink-0`}>
-      {name?.charAt(0).toUpperCase()}
-    </div>
-  )
-}
 
 function Message({ msg, speakingId, onSpeak, msgId }) {
   const isUser = msg.role === 'user'
@@ -89,160 +80,184 @@ function TypingDots() {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
+  const [curriculum, setCurriculum] = useState({})
   const [activeTool, setActiveTool] = useState('concept')
-  const [subject, setSubject] = useState('Maths')
-  const [grade, setGrade] = useState('')
-  const [messages, setMessages] = useState({})  // keyed by toolId
+  const [subject, setSubject] = useState('')
+  const [topic, setTopic] = useState(null)        // chapter object from RAG
+  const [summaryFormat, setSummaryFormat] = useState('default')  // default | notes | paragraph
+  const [messages, setMessages] = useState({})
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [showGradeMenu, setShowGradeMenu] = useState(false)
+
+  // UI panels
+  const [sidebarOpen, setSidebarOpen] = useState(false)         // CLOSED by default
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [topicModalOpen, setTopicModalOpen] = useState(false)
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
-  const [disclaimer, setDisclaimer] = useState(null)  // red toast message
+  const [showFileMenu, setShowFileMenu] = useState(false)
+
+  const [disclaimer, setDisclaimer] = useState(null)
   const [listening, setListening] = useState(false)
   const [speakingId, setSpeakingId] = useState(null)
+
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
   const recognitionRef = useRef(null)
 
+  // ── Load user + curriculum + chat history ─────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem('ai_tutor_user')
     if (!stored) { navigate('/'); return }
     const u = JSON.parse(stored)
     setUser(u)
-    setGrade(u.grade || 'Grade 5')
 
-    // Load saved chat history for this user
+    fetch(`${API}/api/curriculum`)
+      .then(r => r.json())
+      .then(c => setCurriculum(c))
+      .catch(() => {})
+
     const savedChats = localStorage.getItem(`ai_tutor_chats_${u.name}`)
     if (savedChats) {
-      try { setMessages(JSON.parse(savedChats)) } catch { /* corrupted, ignore */ }
+      try { setMessages(JSON.parse(savedChats)) } catch { /* corrupted */ }
     }
   }, [navigate])
 
-  // Persist chat history whenever messages change
+  // Persist chat history
   useEffect(() => {
     if (!user || Object.keys(messages).length === 0) return
     localStorage.setItem(`ai_tutor_chats_${user.name}`, JSON.stringify(messages))
   }, [messages, user])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  // Subjects available for the current grade (grade-specific)
+  const gradeSubjects = useMemo(() => {
+    if (!user?.grade) return []
+    return Object.keys(curriculum[user.grade] || {})
+  }, [curriculum, user?.grade])
 
+  // Auto-pick first subject when grade changes / curriculum loads
+  useEffect(() => {
+    if (gradeSubjects.length === 0) return
+    if (!gradeSubjects.includes(subject)) {
+      setSubject(gradeSubjects[0])
+      setTopic(null)
+    }
+  }, [gradeSubjects, subject])
+
+  // Auto-scroll
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
+
+  // Disclaimer auto-dismiss
   useEffect(() => {
     if (!disclaimer) return
     const t = setTimeout(() => setDisclaimer(null), 5000)
     return () => clearTimeout(t)
   }, [disclaimer])
 
-  // Stop any active speech when leaving the page
+  // Stop speech on unmount
   useEffect(() => () => window.speechSynthesis?.cancel(), [])
 
   const currentMessages = messages[activeTool] || []
   const currentTool = TOOLS.find(t => t.id === activeTool)
 
+  // ── Profile save ──────────────────────────────────────────────────────
+  const saveProfile = (next) => {
+    const updated = { ...user, ...next }
+    setUser(updated)
+    localStorage.setItem('ai_tutor_user', JSON.stringify(updated))
+    setProfileOpen(false)
+  }
+
+  const logout = () => {
+    window.speechSynthesis?.cancel()
+    localStorage.removeItem('ai_tutor_user')
+    navigate('/')
+  }
+
+  // ── Text-to-speech ────────────────────────────────────────────────────
   const speak = (id, text) => {
     if (!('speechSynthesis' in window)) {
       setDisclaimer("Text-to-speech is not supported in this browser.")
       return
     }
-    if (speakingId === id) {
-      window.speechSynthesis.cancel()
-      setSpeakingId(null)
-      return
-    }
+    if (speakingId === id) { window.speechSynthesis.cancel(); setSpeakingId(null); return }
     window.speechSynthesis.cancel()
     const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'en-IN'
-    utter.rate = 0.95
-    utter.pitch = 1
+    utter.lang = 'en-IN'; utter.rate = 0.95
     utter.onend = () => setSpeakingId(null)
     utter.onerror = () => setSpeakingId(null)
     window.speechSynthesis.speak(utter)
     setSpeakingId(id)
   }
 
+  // ── Voice input ───────────────────────────────────────────────────────
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) {
-      setDisclaimer("Voice input is not supported in this browser. Please use Chrome or Edge.")
-      return
-    }
-
-    if (listening) {
-      recognitionRef.current?.stop()
-      setListening(false)
-      return
-    }
+    if (!SR) { setDisclaimer("Voice input is not supported in this browser. Please use Chrome or Edge."); return }
+    if (listening) { recognitionRef.current?.stop(); setListening(false); return }
 
     const rec = new SR()
-    rec.continuous = false
-    rec.interimResults = true
-    rec.lang = 'en-IN'
-    rec.maxAlternatives = 1
-
-    let finalTranscript = ''
-
+    rec.continuous = false; rec.interimResults = true; rec.lang = 'en-IN'
+    let finalT = ''
     rec.onresult = (event) => {
       let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript
-        if (event.results[i].isFinal) finalTranscript += transcript
-        else interim += transcript
+        const t = event.results[i][0].transcript
+        if (event.results[i].isFinal) finalT += t; else interim += t
       }
-      setInput((finalTranscript + interim).trim())
+      setInput((finalT + interim).trim())
     }
-
     rec.onerror = (e) => {
       setListening(false)
-      if (e.error === 'not-allowed') {
-        setDisclaimer("Microphone access denied. Please allow microphone permission in your browser.")
-      }
+      if (e.error === 'not-allowed') setDisclaimer("Microphone access denied. Allow microphone permission in your browser.")
     }
-
     rec.onend = () => setListening(false)
-
     recognitionRef.current = rec
     rec.start()
     setListening(true)
   }
 
+  // ── File upload ───────────────────────────────────────────────────────
+  const openFilePicker = (accept) => {
+    setShowFileMenu(false)
+    if (fileRef.current) {
+      fileRef.current.accept = accept
+      fileRef.current.click()
+    }
+  }
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    e.target.value = ''  // allow re-uploading the same file later
-
+    e.target.value = ''
     const isPdf = file.name.toLowerCase().endsWith('.pdf')
+    const isImage = file.type.startsWith('image/')
+
+    if (isImage) {
+      setDisclaimer("Image text extraction will be added soon. For now, please use PDF or text files.")
+      return
+    }
 
     if (isPdf) {
       setLoading(true)
       try {
-        const fd = new FormData()
-        fd.append('file', file)
+        const fd = new FormData(); fd.append('file', file)
         const res = await fetch(`${API}/api/upload-pdf`, { method: 'POST', body: fd })
         const data = await res.json()
-        if (!res.ok) {
-          setDisclaimer(data.detail || "Could not read this PDF. Please try another file.")
-          return
-        }
+        if (!res.ok) { setDisclaimer(data.detail || "Could not read this PDF."); return }
         setInput(prev => prev + (prev ? '\n\n' : '') + `[From ${data.filename} (${data.pages} pages)]\n${data.text}`)
       } catch {
-        setDisclaimer("Upload failed. Please check your connection and try again.")
-      } finally {
-        setLoading(false)
-      }
+        setDisclaimer("Upload failed. Check your connection and try again.")
+      } finally { setLoading(false) }
       return
     }
 
-    // Plain text file — read locally
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      setInput(prev => prev + (prev ? '\n\n' : '') + ev.target.result)
-    }
+    reader.onload = (ev) => setInput(prev => prev + (prev ? '\n\n' : '') + ev.target.result)
     reader.readAsText(file)
   }
 
+  // ── Send message ──────────────────────────────────────────────────────
   const sendMessage = async () => {
     const text = input.trim()
     if (!text || loading) return
@@ -256,53 +271,66 @@ export default function Dashboard() {
       const res = await fetch(`${API}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, grade, subject, tool: activeTool }),
+        body: JSON.stringify({
+          message: text,
+          grade: user.grade,
+          subject: activeTool === 'concept' ? subject : '',
+          tool: activeTool,
+          topic: topic?.title || '',
+          format: activeTool === 'summarizer' ? summaryFormat : 'default',
+        }),
       })
       const data = await res.json()
-      if (data.blocked) {
-        setDisclaimer("Inappropriate language detected. Please keep questions focused on your studies. This message will close in 5 seconds.")
-      }
+      if (data.blocked) setDisclaimer("Inappropriate language detected. Please keep questions focused on your studies. This message will close in 5 seconds.")
       const aiMsg = { role: 'ai', content: data.response || data.detail || 'Sorry, I could not get a response.' }
       setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), aiMsg] }))
     } catch {
       setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), { role: 'ai', content: 'Connection error. Please try again.' }] }))
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const logout = () => { localStorage.removeItem('ai_tutor_user'); navigate('/') }
+  const onPickTopic = (chapter) => {
+    setTopic(chapter)
+    setTopicModalOpen(false)
+  }
+
+  const subjectChapters = (curriculum[user?.grade]?.[subject]) || []
 
   if (!user) return null
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
 
-      {/* Red disclaimer toast (auto-hides after 5s) */}
+      {/* Red disclaimer toast */}
       {disclaimer && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100]">
           <div className="bg-red-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-md border border-red-700">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <p className="text-sm font-medium leading-snug">{disclaimer}</p>
-            <button onClick={() => setDisclaimer(null)}
-              className="ml-2 text-white/80 hover:text-white text-lg leading-none flex-shrink-0">✕</button>
+            <button onClick={() => setDisclaimer(null)} className="ml-2 text-white/80 hover:text-white text-lg leading-none">✕</button>
           </div>
         </div>
       )}
 
       {/* Top Navbar */}
-      <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0 shadow-sm z-10">
-        <button onClick={() => setSidebarOpen(p => !p)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0 shadow-sm z-20">
+        {/* Tools toggle button (prominent) */}
+        <button onClick={() => setSidebarOpen(p => !p)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-semibold text-sm transition
+            ${sidebarOpen ? 'bg-blue-600 text-white shadow' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          Tools
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-1">
           <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 7v9h4v-5h6v5h4V7L10 2z" fill="white"/></svg>
           </div>
@@ -311,52 +339,41 @@ export default function Dashboard() {
 
         <div className="flex-1" />
 
-        {/* Grade chip */}
-        <div className="relative">
-          <button onClick={() => { setShowGradeMenu(p => !p); setShowSubjectMenu(false) }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 hover:bg-blue-100 transition">
-            {grade}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          {showGradeMenu && (
-            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-36 max-h-60 overflow-y-auto">
-              {GRADES.map(g => (
-                <button key={g} onClick={() => { setGrade(g); setShowGradeMenu(false);
-                  setUser(u => { const nu = {...u, grade: g}; localStorage.setItem('ai_tutor_user', JSON.stringify(nu)); return nu }) }}
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${g === grade ? 'text-blue-600 font-bold' : 'text-gray-700'}`}>
-                  {g}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Profile */}
-        <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
-          <Avatar name={user.name} size="sm" />
-          <div className="hidden sm:block">
-            <div className="text-xs font-semibold text-gray-800 leading-tight">{user.name}</div>
-            <div className="text-xs text-gray-400 leading-tight">{user.school}</div>
+        {/* Profile button — clickable, opens ProfileModal */}
+        <button onClick={() => setProfileOpen(true)}
+          className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl hover:bg-blue-50 transition border border-transparent hover:border-blue-100">
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-sm">
+            {user.name.charAt(0).toUpperCase()}
           </div>
-          <button onClick={logout} title="Log out"
-            className="ml-1 p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
-        </div>
+          <div className="hidden sm:block text-left">
+            <div className="text-xs font-semibold text-gray-800 leading-tight">{user.name}</div>
+            <div className="text-xs text-gray-400 leading-tight">{user.grade} · {user.school}</div>
+          </div>
+        </button>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
 
-        {/* Sidebar */}
+        {/* Sidebar — overlay style, only shown when sidebarOpen */}
         {sidebarOpen && (
-          <aside className="w-56 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-            <div className="px-3 pt-4 pb-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Tools</p>
-              <div className="space-y-1">
+          <>
+            {/* Backdrop to close on outside click */}
+            <div className="absolute inset-0 bg-black/20 z-10" onClick={() => setSidebarOpen(false)} />
+
+            <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 z-20 shadow-lg animate-in slide-in-from-left duration-200">
+              <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tools</p>
+                <button onClick={() => setSidebarOpen(false)} title="Close"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              <div className="px-3 py-3 space-y-1">
                 {TOOLS.map(t => (
-                  <button key={t.id} onClick={() => setActiveTool(t.id)}
+                  <button key={t.id} onClick={() => { setActiveTool(t.id); setSidebarOpen(false) }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition
-                      ${activeTool === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>
+                      ${activeTool === t.id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}`}>
                     <span className={activeTool === t.id ? 'text-white' : 'text-blue-500'}>{t.icon}</span>
                     <div>
                       <div className="text-xs font-semibold">{t.label}</div>
@@ -365,16 +382,16 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-            </div>
 
-            <div className="mt-auto px-3 pb-4">
-              <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                <p className="text-xs font-semibold text-blue-700 mb-1">Studying</p>
-                <p className="text-xs text-gray-600">{grade}</p>
-                <p className="text-xs text-gray-500">{user.school}</p>
+              <div className="mt-auto px-3 pb-4">
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">Studying</p>
+                  <p className="text-xs text-gray-600">{user.grade}</p>
+                  <p className="text-xs text-gray-500">{user.school}</p>
+                </div>
               </div>
-            </div>
-          </aside>
+            </aside>
+          </>
         )}
 
         {/* Main chat area */}
@@ -385,7 +402,11 @@ export default function Dashboard() {
             <span className="text-blue-500">{currentTool?.icon}</span>
             <div>
               <h1 className="text-sm font-bold text-gray-800">{currentTool?.label}</h1>
-              <p className="text-xs text-gray-400">{grade} · {subject}</p>
+              <p className="text-xs text-gray-400">
+                {user.grade}
+                {activeTool === 'concept' && subject && ` · ${subject}`}
+                {activeTool === 'concept' && topic && ` · ${topic.title}`}
+              </p>
             </div>
             {currentMessages.length > 0 && (
               <button onClick={() => setMessages(p => ({ ...p, [activeTool]: [] }))}
@@ -405,21 +426,10 @@ export default function Dashboard() {
                 <h2 className="text-base font-bold text-gray-700 mb-1">{currentTool?.label}</h2>
                 <p className="text-sm text-gray-400 max-w-xs">
                   {activeTool === 'concept'
-                    ? `Ask me to explain any ${subject} concept for ${grade}. I'll make it easy to understand!`
-                    : `Paste your notes or text below and I'll create a clear summary for ${grade}.`
+                    ? `Pick a subject below, then ask anything about ${user.grade} ${subject || ''}.`
+                    : `Upload a document (PDF/text) or paste it below. Then I'll summarize it for ${user.grade}.`
                   }
                 </p>
-                <div className="mt-5 flex flex-wrap gap-2 justify-center max-w-sm">
-                  {(activeTool === 'concept'
-                    ? [`What is ${subject === 'Maths' ? 'addition' : subject === 'Science' ? 'photosynthesis' : subject === 'English' ? 'a noun' : 'a vowel'}?`, 'Explain with an example', 'Give me a simple definition']
-                    : ['Summarize my notes', 'Make it shorter', 'List the key points']
-                  ).map(s => (
-                    <button key={s} onClick={() => setInput(s)}
-                      className="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-100 transition">
-                      {s}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -430,20 +440,62 @@ export default function Dashboard() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Bottom input bar */}
+          {/* Bottom input bar — different for concept vs summarizer */}
           <div className="px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
+
+            {/* Summarizer format selector (only for summarizer) */}
+            {activeTool === 'summarizer' && (
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span className="text-xs font-semibold text-gray-500">Format:</span>
+                {[
+                  { id: 'default', label: 'Default' },
+                  { id: 'notes', label: '📝 Notes' },
+                  { id: 'paragraph', label: '📄 Paragraph' },
+                ].map(f => (
+                  <button key={f.id} onClick={() => setSummaryFormat(f.id)}
+                    className={`text-xs px-3 py-1 rounded-full border transition
+                      ${summaryFormat === f.id ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:border-blue-200'}`}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:border-blue-400 focus-within:bg-white transition">
 
-              {/* File upload */}
-              <button onClick={() => fileRef.current?.click()} title="Upload file"
-                className="p-1.5 text-gray-400 hover:text-blue-500 transition flex-shrink-0 mb-0.5">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                </svg>
-              </button>
-              <input ref={fileRef} type="file" accept=".txt,.pdf" className="hidden" onChange={handleFileUpload} />
+              {/* File upload with menu */}
+              <div className="relative flex-shrink-0 mb-0.5">
+                <button onClick={() => setShowFileMenu(p => !p)} title="Attach file"
+                  className="p-1.5 text-gray-400 hover:text-blue-500 transition">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                </button>
+                {showFileMenu && (
+                  <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-48">
+                    <button onClick={() => openFilePicker('.pdf')}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                      <span className="text-red-500">📄</span> PDF Document
+                    </button>
+                    <button onClick={() => openFilePicker('image/*')}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                      <span className="text-green-500">🖼️</span> Picture / Image
+                    </button>
+                    <button onClick={() => openFilePicker('.txt,.md,.csv')}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                      <span className="text-blue-500">📝</span> Text File
+                    </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button onClick={() => openFilePicker('*/*')}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                      <span>📎</span> Any File (from computer)
+                    </button>
+                  </div>
+                )}
+              </div>
+              <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} />
 
-              {/* Voice input (mic) */}
+              {/* Voice input */}
               <button onClick={toggleVoice} title={listening ? "Stop recording" : "Voice input"}
                 className={`p-1.5 transition flex-shrink-0 mb-0.5 rounded-lg relative
                   ${listening ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-blue-500'}`}>
@@ -453,29 +505,44 @@ export default function Dashboard() {
                   <line x1="12" y1="19" x2="12" y2="23"/>
                   <line x1="8" y1="23" x2="16" y2="23"/>
                 </svg>
-                {listening && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                )}
+                {listening && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
               </button>
 
-              {/* Subject selector */}
-              <div className="relative flex-shrink-0 mb-0.5">
-                <button onClick={() => { setShowSubjectMenu(p => !p); setShowGradeMenu(false) }}
-                  className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:bg-blue-50 px-2 py-1.5 rounded-lg transition">
-                  {subject}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              {/* Subject selector — only for Concept Explainer */}
+              {activeTool === 'concept' && gradeSubjects.length > 0 && (
+                <div className="relative flex-shrink-0 mb-0.5">
+                  <button onClick={() => { setShowSubjectMenu(p => !p); setShowFileMenu(false) }}
+                    className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:bg-blue-50 px-2 py-1.5 rounded-lg transition">
+                    {subject || 'Subject'}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {showSubjectMenu && (
+                    <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-44">
+                      <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold">{user.grade} subjects</p>
+                      {gradeSubjects.map(s => (
+                        <button key={s} onClick={() => {
+                            setSubject(s)
+                            setTopic(null)
+                            setShowSubjectMenu(false)
+                            setTopicModalOpen(true)  // immediately open topic picker
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${s === subject ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700'}`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Topic chip (shows when topic picked, click to change) */}
+              {activeTool === 'concept' && topic && (
+                <button onClick={() => setTopicModalOpen(true)}
+                  className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded-lg hover:bg-blue-200 transition flex-shrink-0 mb-0.5 max-w-[140px]">
+                  <span className="truncate">{topic.title}</span>
+                  <span className="text-blue-500">✕</span>
                 </button>
-                {showSubjectMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-40">
-                    {SUBJECTS.map(s => (
-                      <button key={s} onClick={() => { setSubject(s); setShowSubjectMenu(false) }}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${s === subject ? 'text-blue-600 font-bold' : 'text-gray-700'}`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Text input */}
               <textarea
@@ -498,14 +565,31 @@ export default function Dashboard() {
                 </svg>
               </button>
             </div>
-            <p className="text-center text-xs text-gray-300 mt-1.5">Press Enter to send · Shift+Enter for new line</p>
+
+            <p className="text-center text-xs text-gray-300 mt-1.5">
+              {activeTool === 'concept'
+                ? 'Press Enter to send · Click subject to choose a topic'
+                : 'Type a topic to focus the summary, or paste/upload text · Press Enter to send'}
+            </p>
           </div>
         </main>
       </div>
 
-      {/* Close dropdowns on outside click */}
-      {(showGradeMenu || showSubjectMenu) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setShowGradeMenu(false); setShowSubjectMenu(false) }} />
+      {/* Close popovers on outside click */}
+      {(showSubjectMenu || showFileMenu) && (
+        <div className="fixed inset-0 z-40" onClick={() => { setShowSubjectMenu(false); setShowFileMenu(false) }} />
+      )}
+
+      {/* Modals */}
+      {profileOpen && <ProfileModal user={user} onClose={() => setProfileOpen(false)} onSave={saveProfile} onLogout={logout} />}
+      {topicModalOpen && (
+        <TopicSelectionModal
+          grade={user.grade}
+          subject={subject}
+          chapters={subjectChapters}
+          onClose={() => setTopicModalOpen(false)}
+          onPick={onPickTopic}
+        />
       )}
     </div>
   )

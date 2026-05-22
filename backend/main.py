@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from groq import Groq
 from dotenv import load_dotenv
 from pypdf import PdfReader
-from .cbse_kb import retrieve_context
+from .cbse_kb import CBSE_KB, retrieve_context
 from .moderation import is_inappropriate
 
 load_dotenv()
@@ -49,13 +49,22 @@ CONTENT_GUARD = (
 class ChatRequest(BaseModel):
     message: str
     grade: str
-    subject: str
+    subject: str = ""
     tool: str
+    topic: str = ""             # optional specific chapter/topic title
+    format: str = "default"     # "notes" | "paragraph" | "default" (for summarizer)
 
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/curriculum")
+def curriculum():
+    """Return the grade -> subject -> [{ch, title, concepts}] map so frontend
+    can show grade-specific subjects and topic pickers."""
+    return CBSE_KB
 
 
 MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -103,20 +112,33 @@ async def chat(req: ChatRequest):
     grade_num = int(req.grade.replace("Grade ", "").strip()) if req.grade.replace("Grade ", "").strip().isdigit() else 5
     profile = GRADE_PROFILES.get(grade_num, GRADE_PROFILES[5])
 
-    rag_context = retrieve_context(req.message, req.grade, req.subject)
+    # If the student picked a specific topic from the popup, search that title
+    # against the KB first to get exact-chapter context; otherwise keyword-match the message.
+    rag_query = req.topic if req.topic else req.message
+    rag_context = retrieve_context(rag_query, req.grade, req.subject) if req.subject else ""
     rag_block = f"\n\n{rag_context}\n\nUse this curriculum context to ground your answer when relevant.\n" if rag_context else ""
 
+    topic_line = f" The student has chosen the chapter: '{req.topic}'. Focus your answer on this chapter." if req.topic else ""
+
     if req.tool == "summarizer":
+        if req.format == "notes":
+            style = "Present the summary as short bullet-point notes (one idea per bullet, easy to revise from). Group related points under bold headings."
+        elif req.format == "paragraph":
+            style = "Present the summary as 1-2 flowing paragraphs (no bullets). Keep it concise and readable."
+        else:
+            style = "Use bullet points for key points. Keep it short and easy to understand."
+
+        focus = f" The student wants you to focus specifically on this topic from the text: '{req.message.split(chr(10))[0][:120]}'." if req.topic else ""
+
         system = (
             f"You are an AI summarizer for a {req.grade} student. {profile} "
-            f"Summarize the provided text in a clear, concise way appropriate for {req.grade}. "
-            f"Use bullet points for key points. Keep it short and easy to understand. "
+            f"Summarize the provided text in a clear way appropriate for {req.grade}. {style}{focus} "
             f"{CONTENT_GUARD}{rag_block}"
         )
     else:
         system = (
             f"You are a friendly AI tutor for a {req.grade} student studying {req.subject} (CBSE curriculum). "
-            f"{profile} "
+            f"{profile}{topic_line} "
             f"Explain the concept clearly and thoroughly. Use simple examples. "
             f"If relevant, mention how it fits in the CBSE {req.grade} {req.subject} syllabus. "
             f"{CONTENT_GUARD}{rag_block}"
