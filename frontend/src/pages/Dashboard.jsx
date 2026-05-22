@@ -258,10 +258,8 @@ export default function Dashboard() {
   }
 
   // ── Send message ──────────────────────────────────────────────────────
-  const sendMessage = async () => {
-    const text = input.trim()
-    if (!text || loading) return
-
+  const sendToBackend = async (text, chapter) => {
+    if (loading) return
     const userMsg = { role: 'user', content: text, initials: user.name.charAt(0).toUpperCase() }
     setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), userMsg] }))
     setInput('')
@@ -276,7 +274,7 @@ export default function Dashboard() {
           grade: user.grade,
           subject: activeTool === 'concept' ? subject : '',
           tool: activeTool,
-          topic: topic?.title || '',
+          topic: chapter?.title || '',
           format: activeTool === 'summarizer' ? summaryFormat : 'default',
         }),
       })
@@ -289,6 +287,12 @@ export default function Dashboard() {
     } finally { setLoading(false) }
   }
 
+  const sendMessage = () => {
+    const text = input.trim()
+    if (!text) return
+    sendToBackend(text, topic)
+  }
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
@@ -296,6 +300,12 @@ export default function Dashboard() {
   const onPickTopic = (chapter) => {
     setTopic(chapter)
     setTopicModalOpen(false)
+    // When student picks a specific chapter, auto-ask the AI to explain it
+    // (don't auto-fire when they pick "Any topic" → chapter is null)
+    if (chapter && activeTool === 'concept') {
+      const intro = `Please explain "${chapter.title}" from ${user.grade} ${subject} (CBSE curriculum) in detail. Cover the main concepts, give simple examples, and include any key formulas or definitions a student should learn.`
+      sendToBackend(intro, chapter)
+    }
   }
 
   const subjectChapters = (curriculum[user?.grade]?.[subject]) || []
