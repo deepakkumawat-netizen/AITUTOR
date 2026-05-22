@@ -7,6 +7,19 @@ import TopicSelectionModal from '../components/TopicSelectionModal'
 
 const API = import.meta.env.VITE_API_URL || ''
 
+const SUMMARY_FORMATS = [
+  { id: '1_paragraph',  icon: '📄', label: '1 Paragraph',   desc: '' },
+  { id: '2_paragraphs', icon: '📄', label: '2 Paragraphs',  desc: 'default' },
+  { id: '3_paragraphs', icon: '📄', label: '3 Paragraphs',  desc: '' },
+  { id: '4_paragraphs', icon: '📄', label: '4 Paragraphs',  desc: '' },
+  { id: '5_paragraphs', icon: '📄', label: '5 Paragraphs',  desc: '' },
+  { id: 'bullets',      icon: '•',  label: 'Bullet Points', desc: '5-8 points' },
+  { id: 'notes',        icon: '📝', label: 'Study Notes',   desc: 'sections + bullets' },
+  { id: 'short',        icon: '⚡', label: 'Short',         desc: '2-3 sentences' },
+  { id: 'medium',       icon: '📋', label: 'Medium',        desc: '5-8 sentences' },
+  { id: 'long',         icon: '📚', label: 'Long',          desc: '3-4 paragraphs' },
+]
+
 const TOOLS = [
   {
     id: 'concept',
@@ -28,7 +41,7 @@ const TOOLS = [
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
       </svg>
     ),
-    placeholder: 'Type a topic to focus on, or paste text to summarize...',
+    placeholder: 'Paste study text here, or upload a document/image above...',
   },
 ]
 
@@ -110,7 +123,8 @@ export default function Dashboard() {
   const [activeTool, setActiveTool] = useState('concept')
   const [subject, setSubject] = useState('')
   const [topic, setTopic] = useState(null)        // chapter object from RAG
-  const [summaryFormat, setSummaryFormat] = useState('default')  // default | notes | paragraph
+  const [summaryFormat, setSummaryFormat] = useState('2_paragraphs')
+  const [showFormatMenu, setShowFormatMenu] = useState(false)
   const [messages, setMessages] = useState({})
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -499,7 +513,7 @@ export default function Dashboard() {
                 <p className="text-sm text-gray-400 max-w-xs">
                   {activeTool === 'concept'
                     ? `Pick a subject below, then ask anything about ${user.grade} ${subject || ''}.`
-                    : `Upload a document (PDF/text) or paste it below. Then I'll summarize it for ${user.grade}.`
+                    : `📄 The AI Summarizer only works on study documents. Upload a PDF, image, or paste your notes below, then pick a format on the right.`
                   }
                 </p>
               </div>
@@ -515,21 +529,37 @@ export default function Dashboard() {
           {/* Bottom input bar — different for concept vs summarizer */}
           <div className="px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
 
-            {/* Summarizer format selector (only for summarizer) */}
+            {/* Summarizer info banner + format hover dropdown */}
             {activeTool === 'summarizer' && (
               <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-xs font-semibold text-gray-500">Format:</span>
-                {[
-                  { id: 'default', label: 'Default' },
-                  { id: 'notes', label: '📝 Notes' },
-                  { id: 'paragraph', label: '📄 Paragraph' },
-                ].map(f => (
-                  <button key={f.id} onClick={() => setSummaryFormat(f.id)}
-                    className={`text-xs px-3 py-1 rounded-full border transition
-                      ${summaryFormat === f.id ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:border-blue-200'}`}>
-                    {f.label}
+                <span className="text-xs text-gray-500">📄 Upload a document or paste text · pick a format →</span>
+                <div className="flex-1" />
+                <div className="relative"
+                  onMouseEnter={() => setShowFormatMenu(true)}
+                  onMouseLeave={() => setShowFormatMenu(false)}>
+                  <button className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition
+                    ${showFormatMenu ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>
+                    <span>{SUMMARY_FORMATS.find(f => f.id === summaryFormat)?.icon}</span>
+                    {SUMMARY_FORMATS.find(f => f.id === summaryFormat)?.label || 'Format'}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
-                ))}
+                  {showFormatMenu && (
+                    <div className="absolute bottom-full right-0 pb-2 z-50">
+                      <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-56 max-h-80 overflow-y-auto">
+                        <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold sticky top-0 bg-white border-b border-gray-100">Choose summary format</p>
+                        {SUMMARY_FORMATS.map(f => (
+                          <button key={f.id} onClick={() => { setSummaryFormat(f.id); setShowFormatMenu(false) }}
+                            className={`w-full text-left px-3 py-2 text-xs transition flex items-center gap-2
+                              ${f.id === summaryFormat ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-blue-50'}`}>
+                            <span className="w-4 text-center">{f.icon}</span>
+                            <span className="flex-1">{f.label}</span>
+                            <span className="text-[10px] text-gray-400">{f.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

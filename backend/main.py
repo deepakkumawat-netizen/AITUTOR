@@ -203,19 +203,41 @@ async def chat(req: ChatRequest):
     ) if req.topic else ""
 
     if req.tool == "summarizer":
-        if req.format == "notes":
-            style = "Present the summary as short bullet-point notes (one idea per bullet, easy to revise from). Group related points under bold headings."
-        elif req.format == "paragraph":
-            style = "Present the summary as 1-2 flowing paragraphs (no bullets). Keep it concise and readable."
-        else:
-            style = "Use bullet points for key points. Keep it short and easy to understand."
+        # The summarizer is strictly document-based. Reject very short input that
+        # is clearly not a document the student is trying to summarize.
+        if len(req.message.strip()) < 100:
+            return {
+                "response": "📄 The AI Summarizer works only with documents. Please upload a PDF/image/text file, or paste at least one paragraph of study material to summarize.",
+                "blocked": False,
+            }
 
-        focus = f" The student wants you to focus specifically on this topic from the text: '{req.message.split(chr(10))[0][:120]}'." if req.topic else ""
+        LENGTH_INSTRUCTIONS = {
+            "1_paragraph":  "Summarize in exactly 1 paragraph.",
+            "2_paragraphs": "Summarize in exactly 2 paragraphs.",
+            "3_paragraphs": "Summarize in exactly 3 paragraphs.",
+            "4_paragraphs": "Summarize in exactly 4 paragraphs.",
+            "5_paragraphs": "Summarize in exactly 5 paragraphs.",
+            "bullets":      "Summarize as a list of concise bullet points (use - for each point). Include 5-8 bullets.",
+            "notes":        "Summarize in notes format: use short ALL-CAPS section headings followed by brief bullet points under each, like structured study notes.",
+            "short":        "Summarize in 2-3 sentences only. Be extremely concise.",
+            "medium":       "Summarize in 1-2 paragraphs (5-8 sentences). Capture key ideas.",
+            "long":         "Write a detailed summary in 3-4 paragraphs covering all main points.",
+        }
+        style = LENGTH_INSTRUCTIONS.get(req.format, LENGTH_INSTRUCTIONS["2_paragraphs"])
 
         system = (
-            f"You are an AI summarizer for a {req.grade} student. {profile} "
-            f"Summarize the provided text in a clear way appropriate for {req.grade}. {style}{focus} "
-            f"{CONTENT_GUARD}{rag_block}"
+            f"You are a world-class text summarizer for a CBSE {req.grade} student. {profile}\n\n"
+            f"SUMMARIZE THE PROVIDED DOCUMENT with these rules:\n"
+            f"- Only include information present in the original text — never add outside knowledge\n"
+            f"- Never repeat the same idea twice, even in different words\n"
+            f"- Use active voice and specific, concrete language — avoid vague filler phrases\n"
+            f"- Start directly with the content — never begin with 'This text discusses...' or 'The article explains...'\n"
+            f"- Match the exact format requested\n"
+            f"- For bullet format: start each bullet with a strong action verb or key fact\n"
+            f"- For notes format: use clear section headings in ALL CAPS followed by bullet points\n"
+            f"- Return ONLY the summary — no labels, no preamble, no sign-off, no meta-commentary\n\n"
+            f"FORMAT: {style}\n"
+            f"{CONTENT_GUARD}"
         )
     else:
         system = (
