@@ -39,19 +39,33 @@ function Avatar({ name, size = 'md' }) {
   )
 }
 
-function Message({ msg }) {
+function Message({ msg, speakingId, onSpeak, msgId }) {
   const isUser = msg.role === 'user'
+  const isSpeaking = speakingId === msgId
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}>
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start group`}>
       {isUser
         ? <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{msg.initials}</div>
         : <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center flex-shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v9h4v-5h6v5h4V7L12 2z" fill="white"/></svg>
           </div>
       }
-      <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm
-        ${isUser ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-blue-100 rounded-tl-sm'}`}>
-        {msg.content}
+      <div className={`max-w-[75%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm
+          ${isUser ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-blue-100 rounded-tl-sm'}`}>
+          {msg.content}
+        </div>
+        {!isUser && (
+          <button onClick={() => onSpeak(msgId, msg.content)} title={isSpeaking ? "Stop reading" : "Read aloud"}
+            className={`mt-1 flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition opacity-60 group-hover:opacity-100
+              ${isSpeaking ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:bg-gray-100 hover:text-blue-600'}`}>
+            {isSpeaking
+              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            }
+            {isSpeaking ? "Stop" : "Listen"}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -86,6 +100,7 @@ export default function Dashboard() {
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
   const [disclaimer, setDisclaimer] = useState(null)  // red toast message
   const [listening, setListening] = useState(false)
+  const [speakingId, setSpeakingId] = useState(null)
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
@@ -97,7 +112,19 @@ export default function Dashboard() {
     const u = JSON.parse(stored)
     setUser(u)
     setGrade(u.grade || 'Grade 5')
+
+    // Load saved chat history for this user
+    const savedChats = localStorage.getItem(`ai_tutor_chats_${u.name}`)
+    if (savedChats) {
+      try { setMessages(JSON.parse(savedChats)) } catch { /* corrupted, ignore */ }
+    }
   }, [navigate])
+
+  // Persist chat history whenever messages change
+  useEffect(() => {
+    if (!user || Object.keys(messages).length === 0) return
+    localStorage.setItem(`ai_tutor_chats_${user.name}`, JSON.stringify(messages))
+  }, [messages, user])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -109,8 +136,32 @@ export default function Dashboard() {
     return () => clearTimeout(t)
   }, [disclaimer])
 
+  // Stop any active speech when leaving the page
+  useEffect(() => () => window.speechSynthesis?.cancel(), [])
+
   const currentMessages = messages[activeTool] || []
   const currentTool = TOOLS.find(t => t.id === activeTool)
+
+  const speak = (id, text) => {
+    if (!('speechSynthesis' in window)) {
+      setDisclaimer("Text-to-speech is not supported in this browser.")
+      return
+    }
+    if (speakingId === id) {
+      window.speechSynthesis.cancel()
+      setSpeakingId(null)
+      return
+    }
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'en-IN'
+    utter.rate = 0.95
+    utter.pitch = 1
+    utter.onend = () => setSpeakingId(null)
+    utter.onerror = () => setSpeakingId(null)
+    window.speechSynthesis.speak(utter)
+    setSpeakingId(id)
+  }
 
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -157,9 +208,34 @@ export default function Dashboard() {
     setListening(true)
   }
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''  // allow re-uploading the same file later
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
+
+    if (isPdf) {
+      setLoading(true)
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await fetch(`${API}/api/upload-pdf`, { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) {
+          setDisclaimer(data.detail || "Could not read this PDF. Please try another file.")
+          return
+        }
+        setInput(prev => prev + (prev ? '\n\n' : '') + `[From ${data.filename} (${data.pages} pages)]\n${data.text}`)
+      } catch {
+        setDisclaimer("Upload failed. Please check your connection and try again.")
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // Plain text file — read locally
     const reader = new FileReader()
     reader.onload = (ev) => {
       setInput(prev => prev + (prev ? '\n\n' : '') + ev.target.result)
@@ -347,7 +423,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            {currentMessages.map((msg, i) => <Message key={i} msg={msg} />)}
+            {currentMessages.map((msg, i) => (
+              <Message key={i} msg={msg} msgId={`${activeTool}-${i}`} speakingId={speakingId} onSpeak={speak} />
+            ))}
             {loading && <TypingDots />}
             <div ref={bottomRef} />
           </div>

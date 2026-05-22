@@ -1,11 +1,13 @@
+import io
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from groq import Groq
 from dotenv import load_dotenv
+from pypdf import PdfReader
 from .cbse_kb import retrieve_context
 from .moderation import is_inappropriate
 
@@ -54,6 +56,39 @@ class ChatRequest(BaseModel):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_EXTRACTED_CHARS = 30_000      # cap text sent back so AI prompt stays reasonable
+
+
+@app.post("/api/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    data = await file.read()
+    if len(data) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="PDF too large (max 10MB)")
+
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        text_parts = []
+        total = 0
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            text_parts.append(page_text)
+            total += len(page_text)
+            if total >= MAX_EXTRACTED_CHARS:
+                break
+        text = "\n\n".join(text_parts).strip()[:MAX_EXTRACTED_CHARS]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not read PDF: {str(e)[:120]}")
+
+    if not text:
+        raise HTTPException(status_code=400, detail="No readable text found in this PDF (it may be a scanned image)")
+
+    return {"text": text, "pages": len(reader.pages), "filename": file.filename}
 
 
 @app.post("/api/chat")
