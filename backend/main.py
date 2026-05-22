@@ -1,3 +1,4 @@
+import base64
 import io
 import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -129,6 +130,51 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No readable text found in this PDF (it may be a scanned image)")
 
     return {"text": text, "pages": len(reader.pages), "filename": file.filename}
+
+
+MAX_IMAGE_BYTES = 4 * 1024 * 1024  # 4 MB (vision API has size limit)
+
+
+@app.post("/api/analyze-image")
+async def analyze_image(file: UploadFile = File(...)):
+    """Send image to Groq's vision model and return extracted text + description."""
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file (JPG, PNG, etc.)")
+
+    data = await file.read()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Image too large (max 4MB). Please compress or crop it.")
+
+    mime = file.content_type or "image/jpeg"
+    img_b64 = base64.b64encode(data).decode("utf-8")
+
+    try:
+        response = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": (
+                        "You are helping a student study from this image. "
+                        "Extract ALL text visible in the image word-for-word. "
+                        "If the image contains diagrams, formulas, or figures, also describe them clearly. "
+                        "If there is no text, describe the image in detail so the student can study from it. "
+                        "Output only the extracted/described content — no preamble."
+                    )},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_b64}"}}
+                ]
+            }],
+            max_tokens=1500,
+            temperature=0.3,
+        )
+        text = (response.choices[0].message.content or "").strip()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not analyze image: {str(e)[:120]}")
+
+    if not text:
+        raise HTTPException(status_code=400, detail="Could not extract anything useful from this image")
+
+    return {"text": text, "filename": file.filename}
 
 
 @app.post("/api/chat")

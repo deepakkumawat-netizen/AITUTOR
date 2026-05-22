@@ -260,7 +260,16 @@ export default function Dashboard() {
     const isImage = file.type.startsWith('image/')
 
     if (isImage) {
-      setDisclaimer("Image text extraction will be added soon. For now, please use PDF or text files.")
+      setLoading(true)
+      try {
+        const fd = new FormData(); fd.append('file', file)
+        const res = await fetch(`${API}/api/analyze-image`, { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) { setDisclaimer(data.detail || "Could not analyze this image."); return }
+        setInput(prev => prev + (prev ? '\n\n' : '') + `[From image: ${data.filename}]\n${data.text}`)
+      } catch {
+        setDisclaimer("Image upload failed. Check your connection and try again.")
+      } finally { setLoading(false) }
       return
     }
 
@@ -284,9 +293,11 @@ export default function Dashboard() {
   }
 
   // ── Send message ──────────────────────────────────────────────────────
-  const sendToBackend = async (text, chapter) => {
+  // `apiText` is sent to the backend; `displayText` (optional) is what shows
+  // in the chat bubble. When omitted, both are the same.
+  const sendToBackend = async (apiText, chapter, displayText) => {
     if (loading) return
-    const userMsg = { role: 'user', content: text, initials: user.name.charAt(0).toUpperCase() }
+    const userMsg = { role: 'user', content: displayText || apiText, initials: user.name.charAt(0).toUpperCase() }
     setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), userMsg] }))
     setInput('')
     setLoading(true)
@@ -296,7 +307,7 @@ export default function Dashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
+          message: apiText,
           grade: user.grade,
           subject: activeTool === 'concept' ? subject : '',
           tool: activeTool,
@@ -326,11 +337,11 @@ export default function Dashboard() {
   const onPickTopic = (chapter) => {
     setTopic(chapter)
     setTopicModalOpen(false)
-    // When student picks a specific chapter, auto-ask the AI to explain it
-    // (don't auto-fire when they pick "Any topic" → chapter is null)
+    // Auto-explain when a chapter is picked (not for "Any topic" → chapter null)
     if (chapter && activeTool === 'concept') {
-      const intro = `Please explain "${chapter.title}" from ${user.grade} ${subject} (CBSE curriculum) in detail. Cover the main concepts, give simple examples, and include any key formulas or definitions a student should learn.`
-      sendToBackend(intro, chapter)
+      const apiPrompt = `Please explain "${chapter.title}" from ${user.grade} ${subject} (CBSE curriculum) in detail. Cover the main concepts, give simple examples, and include any key formulas or definitions a student should learn.`
+      const display = `📚 ${chapter.title}`
+      sendToBackend(apiPrompt, chapter, display)
     }
   }
 
@@ -499,33 +510,37 @@ export default function Dashboard() {
 
             <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:border-blue-400 focus-within:bg-white transition">
 
-              {/* File upload with menu */}
-              <div className="relative flex-shrink-0 mb-0.5">
-                <button onClick={() => setShowFileMenu(p => !p)} title="Attach file"
-                  className="p-1.5 text-gray-400 hover:text-blue-500 transition">
+              {/* File upload with hover menu */}
+              <div className="relative flex-shrink-0 mb-0.5"
+                onMouseEnter={() => setShowFileMenu(true)}
+                onMouseLeave={() => setShowFileMenu(false)}>
+                <button title="Attach file"
+                  className={`p-1.5 transition ${showFileMenu ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'}`}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                   </svg>
                 </button>
                 {showFileMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-48">
-                    <button onClick={() => openFilePicker('.pdf')}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
-                      <span className="text-red-500">📄</span> PDF Document
-                    </button>
-                    <button onClick={() => openFilePicker('image/*')}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
-                      <span className="text-green-500">🖼️</span> Picture / Image
-                    </button>
-                    <button onClick={() => openFilePicker('.txt,.md,.csv')}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
-                      <span className="text-blue-500">📝</span> Text File
-                    </button>
-                    <div className="border-t border-gray-100 my-1"></div>
-                    <button onClick={() => openFilePicker('*/*')}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
-                      <span>📎</span> Any File (from computer)
-                    </button>
+                  <div className="absolute bottom-full left-0 pb-2 z-50">
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48">
+                      <button onClick={() => openFilePicker('.pdf')}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                        <span className="text-red-500">📄</span> PDF Document
+                      </button>
+                      <button onClick={() => openFilePicker('image/*')}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                        <span className="text-green-500">🖼️</span> Picture / Image
+                      </button>
+                      <button onClick={() => openFilePicker('.txt,.md,.csv')}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                        <span className="text-blue-500">📝</span> Text File
+                      </button>
+                      <div className="border-t border-gray-100 my-1"></div>
+                      <button onClick={() => openFilePicker('*/*')}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 transition flex items-center gap-2">
+                        <span>📎</span> Any File (from computer)
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -544,28 +559,31 @@ export default function Dashboard() {
                 {listening && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
               </button>
 
-              {/* Subject selector — only for Concept Explainer */}
+              {/* Subject selector — only for Concept Explainer (hover menu) */}
               {activeTool === 'concept' && gradeSubjects.length > 0 && (
-                <div className="relative flex-shrink-0 mb-0.5">
-                  <button onClick={() => { setShowSubjectMenu(p => !p); setShowFileMenu(false) }}
-                    className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:bg-blue-50 px-2 py-1.5 rounded-lg transition">
+                <div className="relative flex-shrink-0 mb-0.5"
+                  onMouseEnter={() => setShowSubjectMenu(true)}
+                  onMouseLeave={() => setShowSubjectMenu(false)}>
+                  <button className={`flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg transition ${showSubjectMenu ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50'}`}>
                     {subject || 'Subject'}
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showSubjectMenu && (
-                    <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 w-44">
-                      <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold">{user.grade} subjects</p>
-                      {gradeSubjects.map(s => (
-                        <button key={s} onClick={() => {
-                            setSubject(s)
-                            setTopic(null)
-                            setShowSubjectMenu(false)
-                            setTopicModalOpen(true)  // immediately open topic picker
-                          }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${s === subject ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700'}`}>
-                          {s}
-                        </button>
-                      ))}
+                    <div className="absolute bottom-full left-0 pb-2 z-50">
+                      <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48 max-h-72 overflow-y-auto">
+                        <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold sticky top-0 bg-white">{user.grade} subjects</p>
+                        {gradeSubjects.map(s => (
+                          <button key={s} onClick={() => {
+                              setSubject(s)
+                              setTopic(null)
+                              setShowSubjectMenu(false)
+                              setTopicModalOpen(true)  // immediately open topic picker
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${s === subject ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700'}`}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -610,11 +628,6 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
-
-      {/* Close popovers on outside click */}
-      {(showSubjectMenu || showFileMenu) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setShowSubjectMenu(false); setShowFileMenu(false) }} />
-      )}
 
       {/* Modals */}
       {profileOpen && <ProfileModal user={user} onClose={() => setProfileOpen(false)} onSave={saveProfile} onLogout={logout} />}
