@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import ProfileModal from '../components/ProfileModal'
 import TopicSelectionModal from '../components/TopicSelectionModal'
 
@@ -42,9 +44,33 @@ function Message({ msg, speakingId, onSpeak, msgId }) {
           </div>
       }
       <div className={`max-w-[75%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm
-          ${isUser ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-blue-100 rounded-tl-sm'}`}>
-          {msg.content}
+        <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm
+          ${isUser ? 'bg-blue-600 text-white rounded-tr-sm whitespace-pre-wrap' : 'bg-white text-gray-800 border border-blue-100 rounded-tl-sm prose prose-sm max-w-none ai-content'}`}>
+          {isUser ? msg.content : (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({node, ...p}) => <h1 className="text-base font-bold text-blue-700 mt-3 mb-2 first:mt-0" {...p} />,
+                h2: ({node, ...p}) => <h2 className="text-sm font-bold text-blue-700 mt-3 mb-1.5 first:mt-0" {...p} />,
+                h3: ({node, ...p}) => <h3 className="text-sm font-semibold text-gray-800 mt-2 mb-1 first:mt-0" {...p} />,
+                p: ({node, ...p}) => <p className="my-1.5 leading-relaxed" {...p} />,
+                ul: ({node, ...p}) => <ul className="list-disc list-outside ml-5 my-1.5 space-y-1" {...p} />,
+                ol: ({node, ...p}) => <ol className="list-decimal list-outside ml-5 my-1.5 space-y-1" {...p} />,
+                li: ({node, ...p}) => <li className="leading-relaxed" {...p} />,
+                strong: ({node, ...p}) => <strong className="font-bold text-blue-700" {...p} />,
+                em: ({node, ...p}) => <em className="italic text-gray-700" {...p} />,
+                code: ({node, inline, ...p}) => inline
+                  ? <code className="bg-blue-50 text-blue-700 px-1 py-0.5 rounded text-xs font-mono" {...p} />
+                  : <code className="block bg-gray-50 text-gray-800 p-3 rounded-lg my-2 text-xs font-mono whitespace-pre overflow-x-auto border border-gray-200" {...p} />,
+                pre: ({node, ...p}) => <pre className="my-2" {...p} />,
+                blockquote: ({node, ...p}) => <blockquote className="border-l-4 border-blue-300 pl-3 my-2 text-gray-600 italic" {...p} />,
+                table: ({node, ...p}) => <div className="overflow-x-auto my-2"><table className="border-collapse border border-gray-300 text-xs" {...p} /></div>,
+                th: ({node, ...p}) => <th className="border border-gray-300 px-2 py-1 bg-blue-50 font-semibold text-blue-700" {...p} />,
+                td: ({node, ...p}) => <td className="border border-gray-300 px-2 py-1" {...p} />,
+                hr: () => <hr className="my-3 border-blue-100" />,
+              }}
+            >{msg.content}</ReactMarkdown>
+          )}
         </div>
         {!isUser && (
           <button onClick={() => onSpeak(msgId, msg.content)} title={isSpeaking ? "Stop reading" : "Read aloud"}

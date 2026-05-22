@@ -25,24 +25,55 @@ app.add_middleware(
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 GRADE_PROFILES = {
-    1:  "Use very simple words. Short sentences (5-8 words). One idea at a time. Fun and friendly tone.",
-    2:  "Use simple words. Short sentences. Relatable examples from daily life.",
-    3:  "Simple vocabulary. Use short paragraphs. Give one clear example.",
-    4:  "Clear simple language. Use examples from school life. Avoid jargon.",
-    5:  "Plain language. Brief explanations. Use bullet points where helpful.",
-    6:  "Clear language. Introduce subject-specific terms with simple definitions.",
-    7:  "Moderate complexity. Define new terms. Use examples and analogies.",
-    8:  "Standard school language. Explain with definitions and examples.",
-    9:  "Academic but clear. Use proper terminology. Structured explanation.",
-    10: "Clear academic language. Board-exam level depth. Use definitions and examples.",
-    11: "Detailed and precise. Use subject-specific terminology. Analytical tone.",
-    12: "High school level. Comprehensive. Use proper subject terminology throughout.",
+    1:  ("Use very simple words a 6-7 year old can understand. Short sentences (5-8 words). "
+         "Be playful, warm, and use LOTS of emojis (🐱 📦 ✨ 🌈 🎈 ⭐ 🎉). Use child-friendly analogies "
+         "(toys, animals, family, food). Sound effects like 'Boom!', 'Yay!' make it fun."),
+    2:  ("Use simple words a 7-8 year old understands. Short sentences. "
+         "Use emojis often (📚 🌟 🎨 🐰). Give examples from playground, school, and home."),
+    3:  ("Simple vocabulary, short paragraphs. Use emojis (✏️ 🌳 🎯 📖). "
+         "Give concrete examples from a 8-9 year old's daily life."),
+    4:  ("Clear simple language with some new words explained gently. Use emojis where helpful (🔬 📊 🗺️). "
+         "Give school-life and nature examples."),
+    5:  ("Plain language with brief explanations. Use emojis selectively (🧪 📐 🌍). "
+         "Use bullet points and short examples. Introduce key terms with simple definitions."),
+    6:  ("Clear language with subject-specific terms (define each on first use). Use emojis sparingly. "
+         "Include step-by-step examples and short formulas in code blocks."),
+    7:  ("Moderate complexity. Define new terms inline. Use examples, analogies, and ASCII diagrams. "
+         "Include important formulas with explanations."),
+    8:  ("Standard school language with clear definitions and worked examples. "
+         "Use diagrams (ASCII) and tables for comparisons."),
+    9:  ("Academic but clear. Use proper terminology. Provide structured explanations with diagrams, "
+         "formulas, and worked-out problems where relevant."),
+    10: ("Clear board-exam level depth. Definitions, formulas, derivations, worked examples. "
+         "Use markdown tables and ASCII diagrams to organize information."),
+    11: ("Detailed and precise. Use proper subject terminology and notation throughout. "
+         "Include derivations, formulas in code blocks, and step-by-step worked problems."),
+    12: ("Comprehensive board-exam level. Use proper terminology, derivations, formula tables. "
+         "Structure with markdown headings and worked examples in detail."),
 }
 
 CONTENT_GUARD = (
     "IMPORTANT: Only respond to educational questions related to school subjects. "
     "Do NOT generate any inappropriate, sexual, violent, or harmful content. "
     "If the question is not related to education or learning, politely decline and redirect to studies."
+)
+
+STRUCTURE_GUIDE = (
+    "\n\nCONTENT STRUCTURE (always follow this layout — output markdown only):\n"
+    "1. **Intro line** with 1-2 emojis matching the topic\n"
+    "2. **## What is it?** — clear definition in 1-2 sentences\n"
+    "3. **## Key Ideas** — numbered list of the main concepts (one idea per line, bold the term)\n"
+    "4. **## Examples** — 2-3 simple examples relevant to the grade level\n"
+    "5. If the topic involves comparison, process, geometry, or hierarchy, include a simple "
+    "ASCII diagram or flowchart inside a ```code block``` (e.g. inside/outside, water cycle, food chain, "
+    "triangle types, etc.)\n"
+    "6. **## Remember!** — 2-3 short bullet points of key takeaways\n"
+    "\nFORMATTING RULES:\n"
+    "- Use markdown headings (##, ###), **bold** for key terms, bullet points, and tables where helpful\n"
+    "- For formulas/equations, use inline `code` or fenced ```code blocks```\n"
+    "- For diagrams, use simple ASCII art in ```code blocks``` — only when the topic naturally has a visual\n"
+    "- Use emojis appropriate to the grade and subject (more emojis for Grade 1-5, fewer for Grade 9-12)\n"
+    "- NEVER write a wall of plain text — always break content into short readable chunks\n"
 )
 
 
@@ -144,8 +175,7 @@ async def chat(req: ChatRequest):
         system = (
             f"You are a friendly AI tutor for a {req.grade} student studying {req.subject} (CBSE curriculum). "
             f"{profile}{topic_line} "
-            f"Explain the concept clearly and thoroughly. Use simple examples. "
-            f"If relevant, mention how it fits in the CBSE {req.grade} {req.subject} syllabus. "
+            f"Explain concepts clearly. {STRUCTURE_GUIDE}"
             f"{CONTENT_GUARD}{rag_block}"
         )
 
@@ -156,7 +186,7 @@ async def chat(req: ChatRequest):
                 {"role": "system", "content": system},
                 {"role": "user", "content": req.message},
             ],
-            max_tokens=600,
+            max_tokens=1200,
             temperature=0.7,
         )
         return {"response": response.choices[0].message.content, "blocked": False}
