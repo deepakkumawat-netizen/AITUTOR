@@ -125,6 +125,7 @@ export default function Dashboard() {
   const [topic, setTopic] = useState(null)        // chapter object from RAG
   const [summaryFormat, setSummaryFormat] = useState('2_paragraphs')
   const [showFormatMenu, setShowFormatMenu] = useState(false)
+  const [focusKeyword, setFocusKeyword] = useState('')
   const [messages, setMessages] = useState({})
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -329,6 +330,7 @@ export default function Dashboard() {
           tool: activeTool,
           topic: chapter?.title || '',
           format: activeTool === 'summarizer' ? summaryFormat : 'default',
+          focus: activeTool === 'summarizer' ? focusKeyword.trim() : '',
         }),
       })
       const data = await res.json()
@@ -529,10 +531,25 @@ export default function Dashboard() {
           {/* Bottom input bar — different for concept vs summarizer */}
           <div className="px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
 
-            {/* Summarizer info banner + format hover dropdown */}
+            {/* Summarizer focus keyword + format hover dropdown */}
             {activeTool === 'summarizer' && (
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-xs text-gray-500">📄 Upload a document or paste text · pick a format →</span>
+              <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
+                <div className="relative flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 min-w-0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-blue-500 flex-shrink-0">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <input
+                    type="text"
+                    value={focusKeyword}
+                    onChange={e => setFocusKeyword(e.target.value)}
+                    placeholder="Focus on keyword/tag (optional)"
+                    className="bg-transparent text-xs text-blue-700 placeholder-blue-400 focus:outline-none w-40 sm:w-48"
+                  />
+                  {focusKeyword && (
+                    <button onClick={() => setFocusKeyword('')} title="Clear focus"
+                      className="text-blue-400 hover:text-red-500 text-xs flex-shrink-0">✕</button>
+                  )}
+                </div>
                 <div className="flex-1" />
                 <div className="relative"
                   onMouseEnter={() => setShowFormatMenu(true)}

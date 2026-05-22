@@ -83,8 +83,9 @@ class ChatRequest(BaseModel):
     grade: str
     subject: str = ""
     tool: str
-    topic: str = ""             # optional specific chapter/topic title
-    format: str = "default"     # "notes" | "paragraph" | "default" (for summarizer)
+    topic: str = ""             # optional specific chapter/topic title (for concept)
+    format: str = "default"     # summarizer format (e.g. 2_paragraphs, bullets, notes...)
+    focus: str = ""             # optional focus keyword/tag for summarizer
 
 
 @app.get("/api/health")
@@ -217,26 +218,42 @@ async def chat(req: ChatRequest):
             "3_paragraphs": "Summarize in exactly 3 paragraphs.",
             "4_paragraphs": "Summarize in exactly 4 paragraphs.",
             "5_paragraphs": "Summarize in exactly 5 paragraphs.",
-            "bullets":      "Summarize as a list of concise bullet points (use - for each point). Include 5-8 bullets.",
-            "notes":        "Summarize in notes format: use short ALL-CAPS section headings followed by brief bullet points under each, like structured study notes.",
+            "bullets":      "Summarize as a list of concise bullet points (use `- ` for each point). Include 5-8 bullets.",
+            "notes":        "Summarize in notes format: use markdown `## SECTION HEADINGS` (in ALL CAPS) followed by brief bullet points under each, like structured study notes.",
             "short":        "Summarize in 2-3 sentences only. Be extremely concise.",
             "medium":       "Summarize in 1-2 paragraphs (5-8 sentences). Capture key ideas.",
             "long":         "Write a detailed summary in 3-4 paragraphs covering all main points.",
         }
         style = LENGTH_INSTRUCTIONS.get(req.format, LENGTH_INSTRUCTIONS["2_paragraphs"])
 
+        # Focus keyword/tag filter — when present, the summary zooms in on those terms
+        focus_block = ""
+        if req.focus.strip():
+            focus_block = (
+                f"\nFOCUS FILTER: The student wants the summary focused specifically on "
+                f"these keywords/tags: '{req.focus.strip()}'. "
+                f"Extract and summarize ONLY the parts of the document that relate to these "
+                f"keywords. Ignore unrelated sections. If the document does not mention these "
+                f"keywords, say so clearly in one line.\n"
+            )
+
         system = (
             f"You are a world-class text summarizer for a CBSE {req.grade} student. {profile}\n\n"
-            f"SUMMARIZE THE PROVIDED DOCUMENT with these rules:\n"
+            f"SUMMARIZE THE PROVIDED DOCUMENT following these rules:\n"
             f"- Only include information present in the original text — never add outside knowledge\n"
             f"- Never repeat the same idea twice, even in different words\n"
-            f"- Use active voice and specific, concrete language — avoid vague filler phrases\n"
-            f"- Start directly with the content — never begin with 'This text discusses...' or 'The article explains...'\n"
+            f"- Use active voice and specific, concrete language\n"
+            f"- Start directly with the content — never begin with 'This text discusses...'\n"
             f"- Match the exact format requested\n"
-            f"- For bullet format: start each bullet with a strong action verb or key fact\n"
-            f"- For notes format: use clear section headings in ALL CAPS followed by bullet points\n"
-            f"- Return ONLY the summary — no labels, no preamble, no sign-off, no meta-commentary\n\n"
-            f"FORMAT: {style}\n"
+            f"- Return ONLY the summary — no labels, no preamble, no sign-off\n\n"
+            f"RICH MARKDOWN OUTPUT (always use these):\n"
+            f"- Wrap KEY TERMS in **bold** so the student can spot them quickly\n"
+            f"- Use markdown ## headings for sections (especially in notes format)\n"
+            f"- Use `code spans` for formulas/equations/specific values\n"
+            f"- Use ```code blocks``` for any ASCII diagram or flowchart that helps comprehension\n"
+            f"- Use bullet lists (`- `) for enumerations\n"
+            f"- Use 1-2 relevant emojis for visual cues in headings (📚 📊 ⚡ 🔬 etc.)\n\n"
+            f"FORMAT: {style}\n{focus_block}"
             f"{CONTENT_GUARD}"
         )
     else:
