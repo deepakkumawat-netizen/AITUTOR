@@ -43,7 +43,12 @@ export default function SignUpModal({ onClose, onSwitchLogin }) {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     // Store in localStorage (placeholder — replace with real auth later)
-    localStorage.setItem('ai_tutor_user', JSON.stringify({ name: form.name, school: form.school, grade: form.grade }))
+    localStorage.setItem('ai_tutor_user', JSON.stringify({
+      name: form.name,
+      school: form.school,
+      grade: form.grade,
+      password: btoa(form.password),  // base64 obfuscation only — demo-grade auth
+    }))
     onClose()
     navigate('/dashboard')
   }
