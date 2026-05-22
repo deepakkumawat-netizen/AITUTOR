@@ -13,22 +13,53 @@ OUT = r'C:\Users\DEEPAK\Desktop\ai tutor\backend\cbse_toc.json'
 
 SUBJECT_KEYWORDS = {
     "MATHS", "MATHEMATICS", "SCIENCE", "ENGLISH", "HINDI", "EVS",
-    "SOCIAL", "SOCIAL SCIENCE", "SOCIAL STUDIES", "PHYSICS", "CHEMISTRY",
+    "SOCIAL", "SOCIAL SCIENCE", "SOCIAL STUDIES", "SST", "PHYSICS", "CHEMISTRY",
     "BIOLOGY", "COMPUTER", "COMPUTER SCIENCE", "GEOGRAPHY", "HISTORY",
     "CIVICS", "ECONOMICS", "ACCOUNTANCY", "BUSINESS STUDIES",
     "POLITICAL SCIENCE", "SANSKRIT", "INFORMATICS PRACTICES",
+    # Composite subjects from the actual TOC sheet
+    "ENGLISH LIT", "ENGLISH GRAM", "ENGLISH LITERATURE", "ENGLISH GRAMMAR",
+    "ENGLISH CORE",
+    "HINDI LIT", "HINDI GRAM", "HINDI LITERATURE", "HINDI GRAMMAR",
+    "HINDI CORE",
+    "SST (ECON)", "SST (GEOG)", "SST (HIST)", "SST (POL)",
+    "SST ECON", "SST GEOG", "SST HIST", "SST POL",
+    "BUSINESS ST", "BUSINESS STUDIES",
+}
+
+SUBJECT_NORMALIZE = {
+    "MATHS": "Maths", "MATHEMATICS": "Maths",
+    "SCIENCE": "Science",
+    "ENGLISH": "English", "ENGLISH LIT": "English Literature", "ENGLISH GRAM": "English Grammar",
+    "ENGLISH LITERATURE": "English Literature", "ENGLISH GRAMMAR": "English Grammar",
+    "HINDI": "Hindi", "HINDI LIT": "Hindi Literature", "HINDI GRAM": "Hindi Grammar",
+    "HINDI LITERATURE": "Hindi Literature", "HINDI GRAMMAR": "Hindi Grammar",
+    "EVS": "EVS",
+    "SOCIAL": "Social Science", "SOCIAL SCIENCE": "Social Science",
+    "SOCIAL STUDIES": "Social Science", "SST": "Social Science",
+    "SST (ECON)": "Social Science: Economics",
+    "SST (GEOG)": "Social Science: Geography",
+    "SST (HIST)": "Social Science: History",
+    "SST (POL)": "Social Science: Political Science",
+    "ENGLISH CORE": "English",
+    "HINDI CORE": "Hindi",
+    "BUSINESS ST": "Business Studies",
+    "BUSINESS STUDIES": "Business Studies",
+    "ACCOUNTANCY": "Accountancy",
+    "ECONOMICS": "Economics",
+    "HISTORY": "History",
+    "GEOGRAPHY": "Geography",
+    "PHYSICS": "Physics",
+    "CHEMISTRY": "Chemistry",
+    "BIOLOGY": "Biology",
 }
 
 
 def normalize_subject(s: str) -> str:
     s = s.strip()
     up = s.upper()
-    if up in ("MATHS", "MATHEMATICS"):
-        return "Maths"
-    if up == "SOCIAL":
-        return "Social Science"
-    if up == "EVS":
-        return "EVS"
+    if up in SUBJECT_NORMALIZE:
+        return SUBJECT_NORMALIZE[up]
     return s.title()
 
 

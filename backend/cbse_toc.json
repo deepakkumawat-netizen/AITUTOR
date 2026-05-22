@@ -1478,7 +1478,9 @@
         "title": "Beyond Earth",
         "stream": "Astronomy",
         "concepts": "Cosmic study tracing solar system alignments, planetary gravity values, orbit trails, moon phases, and deep space star clusters."
-      },
+      }
+    ],
+    "Social Science": [
       {
         "ch": "Chapter 1",
         "title": "Locating Places on the Earth",
@@ -1562,7 +1564,9 @@
         "title": "Economic Activities Around Us",
         "stream": "Economics",
         "concepts": "Primary sectors (farming, mining) vs secondary manufacturing lines and tertiary service systems within market frameworks."
-      },
+      }
+    ],
+    "English Literature": [
       {
         "ch": "Chapter 1",
         "title": "A Bottle of Dew",
@@ -1658,7 +1662,9 @@
         "title": "National War Memorial",
         "stream": "Unit 5: Culture",
         "concepts": "Factual civic study building awareness about military structures and tributes."
-      },
+      }
+    ],
+    "Hindi Literature": [
       {
         "ch": "Chapter 1",
         "title": "मातृभूमि",
@@ -1736,7 +1742,9 @@
         "title": "पेड़ की बात",
         "stream": "साहित्य विधाएँ",
         "concepts": "जगदीश चंद्र बोस के वैज्ञानिक तथ्यों पर आधारित निबंध; पौधों में संवेदनशीलता और जीवन का बोध।"
-      },
+      }
+    ],
+    "English Grammar": [
       {
         "ch": "Module 1",
         "title": "Nouns and Pronouns",
@@ -1790,7 +1798,9 @@
         "title": "Paragraphs & Story Outlines",
         "stream": "Writing Suite",
         "concepts": "Expanding a point matrix into descriptive essay compositions or short morale tales."
-      },
+      }
+    ],
+    "Hindi Grammar": [
       {
         "ch": "Module 1",
         "title": "भाषा, लिपि और व्याकरण",
@@ -2030,7 +2040,9 @@
         "title": "Earth, Moon, and the Sun",
         "stream": "Astronomy",
         "concepts": "Planetary axes rotations, gravitational dependencies, predicting moon phase cycles, and tracing solar/lunar eclipses."
-      },
+      }
+    ],
+    "Social Science": [
       {
         "ch": "Chapter 1",
         "title": "Geographical Diversity of India",
@@ -2108,7 +2120,9 @@
         "title": "Understanding Markets",
         "stream": "Economics",
         "concepts": "Wholesale vs retail distribution lines, understanding pricing margins, and evaluating local markets and weekly bazaars."
-      },
+      }
+    ],
+    "English Literature": [
       {
         "ch": "Theme 1",
         "title": "Learning Together",
@@ -2138,7 +2152,9 @@
         "title": "Bravehearts",
         "stream": "Unit 5: Themes",
         "concepts": "Inspiring accounts of real-life heroism, resilience modules, patriotic values, and analyzing character profiles."
-      },
+      }
+    ],
+    "Hindi Literature": [
       {
         "ch": "Chapter 1",
         "title": "माँ, कह एक कहानी",
@@ -2198,7 +2214,9 @@
         "title": "मीरा के पद",
         "stream": "काव्य एवं गद्य",
         "concepts": "मध्यकालीन कृष्ण-भक्ति काव्य परंपरा; मीराबाई के पदों में छिपी अनन्य भक्ति, समर्पण और ब्रज-राजस्थानी मिश्रित भाषा शैली।"
-      },
+      }
+    ],
+    "English Grammar": [
       {
         "ch": "Module 1",
         "title": "Advanced Tense Combinations",
@@ -2246,7 +2264,9 @@
         "title": "Factual Article Compositions",
         "stream": "Composition Suite",
         "concepts": "Writing data-driven essays based on chart inputs, tables, or visual evidence models."
-      },
+      }
+    ],
+    "Hindi Grammar": [
       {
         "ch": "Module 1",
         "title": "वर्ण विचार एवं उच्चारण स्थान",
@@ -2402,7 +2422,9 @@
         "title": "Celestial Neighborhood",
         "stream": "Astronomy",
         "concepts": "Exploring outer space; analyzing planetary configurations, constellations, the lifecycle of stars, and lunar path schedules."
-      },
+      }
+    ],
+    "Social Science": [
       {
         "ch": "Chapter 1",
         "title": "Natural Resources and Their Use",
@@ -2444,7 +2466,9 @@
         "title": "Factors of Production",
         "stream": "Economics",
         "concepts": "Understanding land, labor, capital, and entrepreneurship; how technology and healthcare training expand global human productivity."
-      },
+      }
+    ],
+    "English Literature": [
       {
         "ch": "Unit Module 1",
         "title": "Fables and Folklore",
@@ -2474,7 +2498,9 @@
         "title": "National Guardians",
         "stream": "Unit 5: Themes",
         "concepts": "Historical biographical texts honoring freedom fighters, armed forces achievements, and community leadership paths."
-      },
+      }
+    ],
+    "Hindi Literature": [
       {
         "ch": "Chapter 1",
         "title": "भारत की गूंज",
@@ -2522,7 +2548,9 @@
         "title": "रामानुजन: एक महान गणितज्ञ",
         "stream": "गद्य व काव्य",
         "concepts": "भारत के महान गणितज्ञ श्रीनिवास रामानुजन की जीवनी; उनकी अद्भुत संख्या-साधना, संघर्ष, और वैश्विक स्तर पर उनके गणितीय योगदान।"
-      },
+      }
+    ],
+    "English Grammar": [
       {
         "ch": "Module 1",
         "title": "Comprehensive Verb Tense Shifts",
@@ -2570,7 +2598,9 @@
         "title": "Analytical Fact Reporting",
         "stream": "Writing Suite",
         "concepts": "Compiling structured argument essays, data-driven analytical reviews based on chart layouts, and presenting summary reports."
-      },
+      }
+    ],
+    "Hindi Grammar": [
       {
         "ch": "Module 1",
         "title": "वर्ण-विचार और संधि नियम",
@@ -2774,7 +2804,9 @@
         "title": "Improvement in Food Resources",
         "stream": "Biology",
         "concepts": "Crop yield improvement, crop variety management, crop production management, nutrient management, manure, fertilizers, storage of grains, animal husbandry (cattle, poultry, fish, bee-keeping)."
-      },
+      }
+    ],
+    "Social Science: History": [
       {
         "ch": "Chapter 1",
         "title": "The French Revolution",
@@ -2804,7 +2836,9 @@
         "title": "Pastoralists in the Modern World",
         "stream": "Contemporary World",
         "concepts": "Pastoral nomads and their movements in mountains, plains, plateaus, and deserts; the impact of colonial laws on pastoral life, and how they coped with modern changes."
-      },
+      }
+    ],
+    "Social Science: Geography": [
       {
         "ch": "Chapter 1",
         "title": "India – Size and Location",
@@ -2840,7 +2874,9 @@
         "title": "Population",
         "stream": "Contemporary India",
         "concepts": "Population size and distribution, population growth and processes of change (birth rate, death rate, migration), age composition, sex ratio, literacy, and National Population Policy."
-      },
+      }
+    ],
+    "Social Science: Political Science": [
       {
         "ch": "Chapter 1",
         "title": "What is Democracy? Why Democracy?",
@@ -2870,7 +2906,9 @@
         "title": "Democratic Rights",
         "stream": "Democratic Politics",
         "concepts": "Life without rights (Guantanamo Bay, Saudi Arabia), rights in a democracy, rights in the Indian Constitution (Fundamental Rights), and expanding the scope of rights."
-      },
+      }
+    ],
+    "Social Science: Economics": [
       {
         "ch": "Chapter 1",
         "title": "People as a Resource",
@@ -2888,7 +2926,9 @@
         "title": "Food Security in India",
         "stream": "Indian Economics",
         "concepts": "Dimensions of food security, food production trends, buffer stocks, Public Distribution System (PDS), fair price shops, and the role of cooperatives."
-      },
+      }
+    ],
+    "English Literature": [
       {
         "ch": "Core Chapters",
         "title": "Selected Prose Text (Chapters 1 to 11)",
@@ -2906,7 +2946,9 @@
         "title": "Core Supplementary Stories",
         "stream": "Moments Supplementary",
         "concepts": "Analytical reading of supplementary fiction like The Lost Child, The Adventures of Toto, The Happy Prince, The Last Leaf, and The Beggar; evaluating narrative styles and underlying morals."
-      },
+      }
+    ],
+    "Hindi Literature": [
       {
         "ch": "पाठ 1 से 8",
         "title": "गद्य खंड (दो बैलों की कथा, ल्हासा की ओर, उपभोक्तावाद की संस्कृति, सांवले सपनों की याद, प्रेमचंद के फटे जूते आदि)",
@@ -2924,7 +2966,9 @@
         "title": "पूरक पाठ्यपुस्तक (इस जल प्रलय में, मेरे संग की औरतें, रीढ़ की हड्डी)",
         "stream": "कृतिका भाग-1 (पूरक)",
         "concepts": "आंचलिक विधा, संस्मरण, और सामाजिक-पारिवारिक ताने-बाने पर आधारित एकांकी का अध्ययन; चरित्र चित्रण और सामाजिक समस्याओं का बोध।"
-      },
+      }
+    ],
+    "English Grammar": [
       {
         "ch": "Module 1",
         "title": "Tenses & Modals",
@@ -2960,7 +3004,9 @@
         "title": "Creative Story Writing",
         "stream": "Writing Portfolio",
         "concepts": "Formulating original short stories from a given visual or verbal prompt cue, organizing progressive plots, dialogues, and a final moral summary."
-      },
+      }
+    ],
+    "Hindi Grammar": [
       {
         "ch": "Module 1",
         "title": "शब्द निर्माण: उपसर्ग और प्रत्यय",
@@ -3182,7 +3228,9 @@
         "title": "Our Environment",
         "stream": "Ecology",
         "concepts": "Ecosystem components, food chains, and webs; analyzing environmental issues including ozone layer depletion, waste production, and biodegradable vs non-biodegradable solutions."
-      },
+      }
+    ],
+    "Social Science: History": [
       {
         "ch": "Chapter 1",
         "title": "The Rise of Nationalism in Europe",
@@ -3212,7 +3260,9 @@
         "title": "Print Culture and the Modern World",
         "stream": "Contemporary World",
         "concepts": "The first printed books, expansion of print into Europe, print revolution impact, public debates, India and print development, and histories of censorship."
-      },
+      }
+    ],
+    "Social Science: Geography": [
       {
         "ch": "Chapter 1",
         "title": "Resources and Development",
@@ -3254,7 +3304,9 @@
         "title": "Lifelines of National Economy",
         "stream": "Contemporary India",
         "concepts": "Evaluated exclusively for map pointing board parameters covering major seaports, international airports, and geographic transit lines."
-      },
+      }
+    ],
+    "Social Science: Political Science": [
       {
         "ch": "Chapter 1",
         "title": "Power Sharing",
@@ -3284,7 +3336,9 @@
         "title": "Outcomes of Democracy",
         "stream": "Democratic Politics",
         "concepts": "Assessing democracy: accountable, responsive, and legitimate governance; economic growth, reduction of inequality, accommodation of diversity, and individual freedom."
-      },
+      }
+    ],
+    "Social Science: Economics": [
       {
         "ch": "Chapter 1",
         "title": "Development",
@@ -3314,7 +3368,9 @@
         "title": "Consumer Rights",
         "stream": "Indian Economics",
         "concepts": "Handled through project portfolios targeting market exploitation cases, consumer awareness movements, and the consumer court system (COPRA)."
-      },
+      }
+    ],
+    "English Literature": [
       {
         "ch": "Core Text",
         "title": "Selected Chapters (Chapters 1 to 9)",
@@ -3332,7 +3388,9 @@
         "title": "Core Supplementary Stories",
         "stream": "Footprints Prose",
         "concepts": "Evaluating narrative styles: A Triumph of Surgery, The Thief's Story, The Midnight Visitor, A Question of Trust, Footprints without Feet, Making of a Scientist, The Necklace, Bholi, The Book That Saved the Earth."
-      },
+      }
+    ],
+    "Hindi Literature": [
       {
         "ch": "पाठ 1 से 6",
         "title": "गद्य खंड (नेताजी का चश्मा, बालगोबिन भगत, लखनवी अंदाज़, एक कहानी यह भी, नौबतखाने में इबादत, संस्कृति)",
@@ -3350,7 +3408,9 @@
         "title": "पूरक पाठ्यपुस्तक (माता का अंचल, साना-साना हाथ जोड़ि, मैं क्यों लिखता हूँ)",
         "stream": "कृतिका भाग-2 (पूरक)",
         "concepts": "आंचलिक परिवेश, यात्रा वृतांत और आत्मचिंतन परक गद्य विधाओं का विस्तृत अध्ययन; देशज शब्दों का प्रयोग और सामाजिक-सांस्कृतिक चेतना।"
-      },
+      }
+    ],
+    "English Grammar": [
       {
         "ch": "Module 1",
         "title": "Tenses & Determiners",
@@ -3386,7 +3446,9 @@
         "title": "Analytical Paragraphs",
         "stream": "Board Writing",
         "concepts": "Composing evidence-based analytical prose text paragraphs interpreting data from line graphs, pie charts, maps, or prompt matrices."
-      },
+      }
+    ],
+    "Hindi Grammar": [
       {
         "ch": "Module 1",
         "title": "रचना के आधार पर वाक्य भेद",
@@ -3800,7 +3862,9 @@
         "title": "Financial Statements (Proprietor)",
         "stream": "Financial",
         "concepts": "Constructing Trading, Profit and Loss Accounts, Balance Sheets with adjustments, and accounts from Incomplete Records (Statement of Affairs)."
-      },
+      }
+    ],
+    "Business Studies": [
       {
         "ch": "Unit 1",
         "title": "Evolution and Fundamentals",
@@ -3968,7 +4032,9 @@
         "title": "India: Physical Environment",
         "stream": "India Physical",
         "concepts": "Size, location vectors, geological divisions, monsoonal drainage systems, tropical vegetation zones, and natural hazard fields."
-      },
+      }
+    ],
+    "English": [
       {
         "ch": "Hornbill Prose",
         "title": "Core Prose Chapters",
@@ -3998,7 +4064,9 @@
         "title": "Advanced Grammar Formats",
         "stream": "Core Grammar",
         "concepts": "Tense corrections, relative clauses, active-passive structural rearrangements, and reordering jumbled phrase syntax."
-      },
+      }
+    ],
+    "Hindi": [
       {
         "ch": "गद्य व काव्य खंड",
         "title": "पाठ्यपुस्तक अध्याय",
@@ -4346,7 +4414,9 @@
         "title": "Analysis of Financial Statements",
         "stream": "Financial Analysis",
         "concepts": "Financial statements of a company (Statement of Profit and Loss & Balance Sheet templates), tools for analysis, accounting ratios (liquidity, solvency, turnover, profitability), and Cash Flow Statements ($AS-3$)."
-      },
+      }
+    ],
+    "Business Studies": [
       {
         "ch": "Unit 1",
         "title": "Nature & Significance of Management",
@@ -4508,7 +4578,9 @@
         "title": "India: People and Economy",
         "stream": "Indian Geography",
         "concepts": "Population dynamics across states; migration types and consequences; human settlements classification; water resource management, mineral/energy deposits, planning strategies, and environmental pollution issues."
-      },
+      }
+    ],
+    "English": [
       {
         "ch": "Flamingo Prose",
         "title": "Board Prose Chapters",
@@ -4538,7 +4610,9 @@
         "title": "Applied Syntax Portfolio",
         "stream": "Grammar",
         "concepts": "Integrated clause restructuring, active-to-passive transformation, direct-to-indirect narrative conversions, and syntax error detection frameworks within text blocks."
-      },
+      }
+    ],
+    "Hindi": [
       {
         "ch": "आरोह भाग-२",
         "title": "मुख्य साहित्य विधाएँ",
