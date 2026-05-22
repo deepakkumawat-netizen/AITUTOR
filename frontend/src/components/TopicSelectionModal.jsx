@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-export default function TopicSelectionModal({ grade, subject, chapters, onClose, onPick }) {
+export default function TopicSelectionModal({ grade, subject, chapters, initialTopic, onClose, onPick }) {
   // ── Group chapters by their unit/stream/module ──
   const { groups, groupOrder, hasGrouping } = useMemo(() => {
     const g = {}
@@ -15,9 +15,12 @@ export default function TopicSelectionModal({ grade, subject, chapters, onClose,
     return { groups: g, groupOrder: order, hasGrouping: hasGroup }
   }, [chapters])
 
-  // For flat subjects, skip the topic step entirely.
-  const [step, setStep] = useState(hasGrouping ? 'topic' : 'chapter')
-  const [selectedTopic, setSelectedTopic] = useState(hasGrouping ? null : '__flat__')
+  // For flat subjects, skip the topic step. If initialTopic is provided (user
+  // already picked it from the nested hover submenu), jump straight to chapter step.
+  const [step, setStep] = useState(initialTopic ? 'chapter' : (hasGrouping ? 'topic' : 'chapter'))
+  const [selectedTopic, setSelectedTopic] = useState(
+    initialTopic || (hasGrouping ? null : '__flat__')
+  )
   const [search, setSearch] = useState('')
 
   const currentChapters = selectedTopic ? (groups[selectedTopic] || []) : []

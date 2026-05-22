@@ -120,6 +120,8 @@ export default function Dashboard() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [topicModalOpen, setTopicModalOpen] = useState(false)
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
+  const [hoveredSubject, setHoveredSubject] = useState(null)
+  const [initialTopic, setInitialTopic] = useState(null)
   const [showFileMenu, setShowFileMenu] = useState(false)
 
   const [disclaimer, setDisclaimer] = useState(null)
@@ -347,6 +349,29 @@ export default function Dashboard() {
 
   const subjectChapters = (curriculum[user?.grade]?.[subject]) || []
 
+  // Topics (units/streams) available within a subject
+  const getTopicsForSubject = (subjectName) => {
+    const chapters = curriculum[user?.grade]?.[subjectName] || []
+    const topics = []
+    const seen = new Set()
+    for (const ch of chapters) {
+      const key = ch.unit || ch.stream
+      if (key && !seen.has(key)) { seen.add(key); topics.push(key) }
+    }
+    return topics
+  }
+
+  // When user picks a topic from the nested hover submenu, open chapter modal
+  // directly at the chapter list (skipping topic step in the modal)
+  const onPickSubjectTopic = (subjectName, topicLabel) => {
+    setSubject(subjectName)
+    setTopic(null)
+    setInitialTopic(topicLabel)
+    setShowSubjectMenu(false)
+    setHoveredSubject(null)
+    setTopicModalOpen(true)
+  }
+
   if (!user) return null
 
   return (
@@ -559,30 +584,74 @@ export default function Dashboard() {
                 {listening && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
               </button>
 
-              {/* Subject selector — only for Concept Explainer (hover menu) */}
+              {/* Subject selector — only for Concept Explainer (hover menu with nested topic submenu) */}
               {activeTool === 'concept' && gradeSubjects.length > 0 && (
                 <div className="relative flex-shrink-0 mb-0.5"
                   onMouseEnter={() => setShowSubjectMenu(true)}
-                  onMouseLeave={() => setShowSubjectMenu(false)}>
+                  onMouseLeave={() => { setShowSubjectMenu(false); setHoveredSubject(null) }}>
                   <button className={`flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg transition ${showSubjectMenu ? 'bg-blue-100 text-blue-700' : 'text-blue-600 hover:bg-blue-50'}`}>
                     {subject || 'Subject'}
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showSubjectMenu && (
                     <div className="absolute bottom-full left-0 pb-2 z-50">
-                      <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48 max-h-72 overflow-y-auto">
-                        <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold sticky top-0 bg-white">{user.grade} subjects</p>
-                        {gradeSubjects.map(s => (
-                          <button key={s} onClick={() => {
-                              setSubject(s)
-                              setTopic(null)
-                              setShowSubjectMenu(false)
-                              setTopicModalOpen(true)  // immediately open topic picker
-                            }}
-                            className={`w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition ${s === subject ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700'}`}>
-                            {s}
-                          </button>
-                        ))}
+                      <div className="flex gap-1">
+
+                        {/* Subjects column */}
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-52 max-h-80 overflow-y-auto">
+                          <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold sticky top-0 bg-white border-b border-gray-100">{user.grade} subjects</p>
+                          {gradeSubjects.map(s => {
+                            const subTopics = getTopicsForSubject(s)
+                            const hasTopics = subTopics.length > 0
+                            return (
+                              <div key={s}
+                                onMouseEnter={() => setHoveredSubject(s)}
+                                className={`flex items-center justify-between transition ${hoveredSubject === s ? 'bg-blue-50' : ''}`}>
+                                <button onClick={() => {
+                                    setSubject(s)
+                                    setTopic(null)
+                                    setInitialTopic(null)
+                                    setShowSubjectMenu(false)
+                                    setHoveredSubject(null)
+                                    setTopicModalOpen(true)
+                                  }}
+                                  className={`flex-1 text-left px-3 py-2 text-xs transition ${s === subject ? 'text-blue-600 font-bold' : 'text-gray-700'}`}>
+                                  {s}
+                                </button>
+                                {hasTopics && (
+                                  <span className="pr-2 text-gray-400">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Nested topic submenu (shows when a subject is hovered AND it has topics) */}
+                        {hoveredSubject && getTopicsForSubject(hoveredSubject).length > 0 && (
+                          <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-56 max-h-80 overflow-y-auto">
+                            <p className="text-[10px] text-gray-400 px-3 py-1 uppercase font-semibold sticky top-0 bg-white border-b border-gray-100">{hoveredSubject} · topics</p>
+                            {getTopicsForSubject(hoveredSubject).map(t => (
+                              <button key={t} onClick={() => onPickSubjectTopic(hoveredSubject, t)}
+                                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition">
+                                {t}
+                              </button>
+                            ))}
+                            <div className="border-t border-gray-100 my-1"></div>
+                            <button onClick={() => {
+                                setSubject(hoveredSubject)
+                                setTopic(null)
+                                setInitialTopic(null)
+                                setShowSubjectMenu(false)
+                                setHoveredSubject(null)
+                                setTopicModalOpen(true)
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs text-blue-600 font-semibold hover:bg-blue-50 transition">
+                              See all chapters →
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -636,8 +705,9 @@ export default function Dashboard() {
           grade={user.grade}
           subject={subject}
           chapters={subjectChapters}
-          onClose={() => setTopicModalOpen(false)}
-          onPick={onPickTopic}
+          initialTopic={initialTopic}
+          onClose={() => { setTopicModalOpen(false); setInitialTopic(null) }}
+          onPick={(ch) => { setInitialTopic(null); onPickTopic(ch) }}
         />
       )}
     </div>
