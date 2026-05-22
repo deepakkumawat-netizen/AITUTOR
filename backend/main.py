@@ -118,7 +118,12 @@ async def chat(req: ChatRequest):
     rag_context = retrieve_context(rag_query, req.grade, req.subject) if req.subject else ""
     rag_block = f"\n\n{rag_context}\n\nUse this curriculum context to ground your answer when relevant.\n" if rag_context else ""
 
-    topic_line = f" The student has chosen the chapter: '{req.topic}'. Focus your answer on this chapter." if req.topic else ""
+    topic_line = (
+        f" The student has chosen the chapter: '{req.topic}'. "
+        f"Explain it strictly following the CBSE {req.grade} {req.subject} syllabus pattern: "
+        f"start with a clear definition or introduction, then explain the key concepts in order, "
+        f"give simple examples or worked-out steps where relevant, and finish with important points to remember."
+    ) if req.topic else ""
 
     if req.tool == "summarizer":
         if req.format == "notes":
