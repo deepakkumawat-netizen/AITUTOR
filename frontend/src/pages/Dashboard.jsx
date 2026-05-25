@@ -712,15 +712,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Topic chip (shows when topic picked, click to change) */}
-              {activeTool === 'concept' && topic && (
-                <button onClick={() => setTopicModalOpen(true)}
-                  className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded-lg hover:bg-blue-200 transition flex-shrink-0 mb-0.5 max-w-[140px]">
-                  <span className="truncate">{topic.title}</span>
-                  <span className="text-blue-500">✕</span>
-                </button>
-              )}
-
               {/* Text input */}
               <textarea
                 ref={textareaRef}
