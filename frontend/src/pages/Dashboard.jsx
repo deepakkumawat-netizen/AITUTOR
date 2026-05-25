@@ -311,11 +311,13 @@ export default function Dashboard() {
 
   // ── Send message ──────────────────────────────────────────────────────
   // `apiText` is sent to the backend; `displayText` (optional) is what shows
-  // in the chat bubble. When omitted, both are the same.
-  const sendToBackend = async (apiText, chapter, displayText) => {
+  // in the chat bubble. Pass `silent: true` to skip the user bubble entirely.
+  const sendToBackend = async (apiText, chapter, displayText, silent = false) => {
     if (loading) return
-    const userMsg = { role: 'user', content: displayText || apiText, initials: user.name.charAt(0).toUpperCase() }
-    setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), userMsg] }))
+    if (!silent) {
+      const userMsg = { role: 'user', content: displayText || apiText, initials: user.name.charAt(0).toUpperCase() }
+      setMessages(prev => ({ ...prev, [activeTool]: [...(prev[activeTool] || []), userMsg] }))
+    }
     setInput('')
     setLoading(true)
 
@@ -365,8 +367,7 @@ export default function Dashboard() {
     // Auto-explain when a chapter is picked (not for "Any topic" → chapter null)
     if (chapter && activeTool === 'concept') {
       const apiPrompt = `Please explain "${chapter.title}" from ${user.grade} ${subject} (CBSE curriculum) in detail. Cover the main concepts, give simple examples, and include any key formulas or definitions a student should learn.`
-      const display = `📚 ${chapter.title}`
-      sendToBackend(apiPrompt, chapter, display)
+      sendToBackend(apiPrompt, chapter, null, true)  // silent — no user bubble
     }
   }
 
